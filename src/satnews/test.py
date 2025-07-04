@@ -1,4 +1,4 @@
-from satire_retriever import get_satirical_news
+from scraper import get_satirical_news
 from satire_synthesizer import synthesize_news_with_ollama
 
 def run_satirical_digest():

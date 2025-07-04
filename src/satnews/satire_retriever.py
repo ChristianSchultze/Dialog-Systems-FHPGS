@@ -1,79 +1,88 @@
-import requests
+import json
+import lzma
+from typing import Callable
+
+import torch
+from smolagents import CodeAgent
 from bs4 import BeautifulSoup
-import feedparser
+import re
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
-def fetch_onion_articles(limit=5):
-    """Fetch latest articles from The Onion"""
-    url = 'https://www.theonion.com/rss'
-    feed = feedparser.parse(url)
-    articles = []
-    for entry in feed.entries[:limit]:
-        articles.append({
-            'title': entry.title,
-            'link': entry.link,
-            'published': entry.published,
-            'summary': BeautifulSoup(entry.summary, 'html.parser').get_text(),
-            'image': extract_image_from_content(entry.summary)
-        })
-    return articles
 
-def fetch_beaverton_articles(limit=5):
-    """Fetch latest articles from The Beaverton front page"""
-    url = 'https://www.thebeaverton.com/'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    articles = []
+def make_llm() -> Callable:
+    generator = pipeline("text-generation", model="huggyllama/llama-7b", torch_dtype=torch.float16, device=0)
+    def llm(promt: str) -> str:
+        result = generator(promt, max_neww_tokens=512, do_sample=True, temperature=0.7)[0]["generated_text"]
+        return result[len(promt):].strip()
 
-    for article in soup.find_all('article')[:limit]:
-        title_tag = article.find('h3', class_='entry-title')
-        if title_tag and title_tag.a:
-            title = title_tag.get_text(strip=True)
-            link = title_tag.a['href']
-            image_tag = article.find('img')
-            image = image_tag['src'] if image_tag else None
-            articles.append({
-                'title': title,
-                'link': link,
-                'image': image
-            })
-    return articles
+    return llm
 
-def fetch_postillon_articles(limit=5):
-    """Fetch articles from The Postillon English version"""
-    url = 'https://www.the-postillon.com/search/label/English'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    articles = []
+def clean_html(html: str) -> str:
+    """Clean raw HTML by removing javascript and css information and removing obsolete whitespaces to reduce
+    token count for LLM processing."""
+    soup = BeautifulSoup(html, "html.parser")
 
-    for article in soup.find_all('h3', class_='post-title entry-title')[:limit]:
-        title_tag = article.find('a')
-        if title_tag:
-            title = title_tag.get_text(strip=True)
-            link = title_tag['href']
-            articles.append({
-                'title': title,
-                'link': link
-            })
-    return articles
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
 
-def extract_image_from_content(content_html):
-    """Extract first image URL from HTML content"""
-    soup = BeautifulSoup(content_html, 'html.parser')
-    img_tag = soup.find('img')
-    return img_tag['src'] if img_tag else None
+    for comment in soup.find_all(string=lambda s: isinstance(s, type(soup.Comment))):
+        comment.extract()
 
-def get_satirical_news():
-    """Combine articles from all sources"""
-    return {
-        'The Onion': fetch_onion_articles(),
-        'The Beaverton': fetch_beaverton_articles(),
-        'The Postillon': fetch_postillon_articles()
-    }
+    text = soup.get_text(separator="\n")
 
-# Example run
-if __name__ == "__main__":
-    satire_news = get_satirical_news()
-    for source, articles in satire_news.items():
-        print(f"\n--- {source} ---")
-        for article in articles:
-            print(article)
+    text = re.sub(r"\n\s*\n+", "\n\n", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return text.strip()
+
+with lzma.open("onion_data.lzma", "rb") as file:
+    json_bytes = file.read()
+    json_str = json_bytes.decode("utf-8")
+data = json.loads(json_str)
+
+llm = make_llm()
+
+article_instruction = """
+You are an HTML data analyzer.
+Your job is to decide from raw HTML code, whether the page is a content page containing an article. 
+
+Article Definition:
+A single main body of text,
+A headline or title,
+A timestamp or publication data,
+Author attribution,
+Paragraphs of text.
+
+Output Format:
+Return a single float value between 0 and 1, representing your confidence that the page contains an article:
+1.0: Definitely an article
+0.0: Definitely not an article
+Round to two decimal places max, e.g. 0.87, 0.42
+"""
+
+extractor_instruction = """
+You are an HTML data extractor.
+Your job is to extract information about the main article on this page from raw HTML code and convert it into clean 
+JSON format.
+
+Focus on extracting:
+- Article title
+- Publication date. 
+- Article content
+- Image links that are clearly related to the main article.
+
+Return only JSON.
+"""
+article_agent = CodeAgent(llm=llm)
+article_agent.plan(article_instruction)
+
+extractor_agent = CodeAgent(llm=llm)
+extractor_agent.plan(extractor_instruction)
+
+for url, site in data.items():
+    if site == "Failed to retrieve.":
+        continue
+    result = article_agent.run(f"Decide this page: \n\n{clean_html(site)}")
+    result = article_agent.run(f"Extract info from the following HTML: \n\n{clean_html(site)}")
+
+
+

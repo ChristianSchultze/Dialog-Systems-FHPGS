@@ -82,7 +82,12 @@ for url, site in data.items():
     if site == "Failed to retrieve.":
         continue
     result = article_agent.run(f"Decide this page: \n\n{clean_html(site)}")
-    result = article_agent.run(f"Extract info from the following HTML: \n\n{clean_html(site)}")
+    try:
+        result = float(result)
+    except ValueError:
+        continue
+    if result > 0.8:
+        result = article_agent.run(f"Extract info from the following HTML: \n\n{clean_html(site)}")
 
 
 

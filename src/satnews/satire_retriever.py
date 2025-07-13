@@ -169,7 +169,6 @@ DONT RETURN ANYTHING ELSE.
             continue
 
         if result_float > 0.7:
-            print("hello")
             extractor_prompt = extractor_instruction + "\n\n" + html_text
             extraction_result = llm(extractor_prompt)
             print("\nRESULT:",extraction_result)

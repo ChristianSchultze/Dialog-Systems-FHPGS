@@ -21,7 +21,7 @@ def main():
     # Initialize local LLM
     llm = make_llm()
 
-    print("\n📄 Extracting article from a single URL...\n")
+    print("\n📄 Extracting article from URL...\n")
     extracted_articles = extract_articles_from_data(one_url_data, llm)
 
     if not extracted_articles:

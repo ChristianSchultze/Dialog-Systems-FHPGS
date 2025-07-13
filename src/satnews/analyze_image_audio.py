@@ -7,6 +7,7 @@ from pydub import AudioSegment
 from PIL import Image, UnidentifiedImageError
 from transformers import BlipProcessor, BlipForConditionalGeneration, pipeline
 
+
 ##########################################
 # Download Audio from YouTube
 ##########################################
@@ -150,45 +151,42 @@ def transcribe_audio(audio_path):
 
 
 ##########################################
-# Ad Filtering
+# Ad Removal using Ollama LLM
 ##########################################
 
-def filter_ads_from_transcript(transcript):
+def remove_ads_with_ollama(transcript, model_name="llama3"):
     """
-    Remove ad segments from a podcast transcript using simple heuristics.
+    Use the LLM to remove advertisements from a transcript.
     """
-    if not transcript:
-        return transcript
+    print("-- Sending transcript to Ollama for ad removal...")
+    url = "http://localhost:11434/api/generate"
+    prompt = f"""
+Remove all advertisement, sponsorship, and promotional content from the following podcast transcript. 
+Return ONLY the spoken content unrelated to advertising, preserving the original discussion and context:
 
-    ad_patterns = [
-        r"this episode is sponsored by.*",
-        r"brought to you by.*",
-        r"our sponsor.*",
-        r"use promo code.*",
-        r"sponsored segment.*",
-        r"visit.*",
-        r"supported by.*",
-        r"terms and conditions.*",
-        r"check out.*",
-        r"advertisement.*",
-        r"ad break.*"
-    ]
+{transcript}
+"""
 
-    lines = transcript.split('\n')
-    filtered_lines = []
+    payload = {
+        "model": model_name,
+        "prompt": prompt
+    }
 
-    for line in lines:
-        skip = False
-        for pattern in ad_patterns:
-            if re.search(pattern, line, flags=re.IGNORECASE):
-                skip = True
-                break
-        if not skip:
-            filtered_lines.append(line)
+    try:
+        response = requests.post(url, json=payload, timeout=120, stream=True)
+        cleaned_chunks = []
+        for line in response.iter_lines():
+            if line:
+                json_data = json.loads(line.decode("utf-8"))
+                chunk_text = json_data.get("response", "")
+                cleaned_chunks.append(chunk_text)
 
-    filtered_text = '\n'.join(filtered_lines)
-    print("[OK] Filtered transcript (ads removed).")
-    return filtered_text
+        cleaned_transcript = "".join(cleaned_chunks)
+        print(f"[OK] Transcript with ads removed:\n{cleaned_transcript}")
+        return cleaned_transcript
+    except Exception as e:
+        print(f"[ERROR] Ollama ad removal failed: {e}")
+        return transcript  # fallback: return original transcript if LLM fails
 
 
 ##########################################
@@ -202,11 +200,15 @@ def summarize_with_ollama(text, model_name="llama3"):
     url = "http://localhost:11434/api/generate"
     payload = {
         "model": model_name,
-        "prompt": f"Summarize the following satirical podcast transcript in concise bullet points, excluding any advertisement content:\n\n{text}"
+        "prompt": f"""Summarize the following satirical podcast transcript into concise bullet points. 
+Exclude any advertisement or promotional content. Focus only on the core discussions and key points:
+
+{text}
+"""
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=60, stream=True)
+        response = requests.post(url, json=payload, timeout=120, stream=True)
         summary_chunks = []
         for line in response.iter_lines():
             if line:
@@ -259,8 +261,9 @@ def analyze_media(
 
     if audio_file:
         raw_transcript = transcribe_audio(audio_file)
-        cleaned_transcript = filter_ads_from_transcript(raw_transcript)
-        transcription = cleaned_transcript
+        if raw_transcript:
+            cleaned_transcript = remove_ads_with_ollama(raw_transcript)
+            transcription = cleaned_transcript
 
     # COMBINE RESULTS
     if caption is None and transcription is None:

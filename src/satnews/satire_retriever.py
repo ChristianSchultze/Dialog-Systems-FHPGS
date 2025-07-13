@@ -168,7 +168,7 @@ DONT RETURN ANYTHING ELSE.
             print(f"Skipping {url}: invalid confidence score '{result}'")
             continue
 
-        if result_float > 0.7:
+        if result_float > 0.6:
             extractor_prompt = extractor_instruction + "\n\n" + html_text
             extraction_result = llm(extractor_prompt)
             print("\nRESULT:",extraction_result)

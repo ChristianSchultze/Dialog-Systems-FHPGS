@@ -116,7 +116,7 @@ def clean_html(html: str) -> str:
 def extract_articles_from_data(data, llm):
     """Extract article info from data using LLM and return structured article dict"""
     
-    article_instruction = """
+    identifier_instruction = """
 You are an HTML data analyzer.
 Your job is to decide from raw HTML code, whether the page is a content page containing an article.
 
@@ -164,26 +164,35 @@ DONT RETURN ANYTHING ELSE.
 
     extracted_articles = {}
     identified_articles_ids = []
+    identified_articles_urls = []
     failed_json = 0
-    
+    failed_score = 0
+
     for index, (url, site) in tqdm(enumerate(data), desc="Identifying articles", total=len(data)):
         if site == "Failed to retrieve.":
             continue
 
         html_text = clean_html(site)
 
-        result = llm(article_instruction, html_text)
+        result = llm(identifier_instruction, html_text)
 
         try:
             result = result.strip().replace(",", "").replace("*","").replace("'", "")
-            print("RESULT:", result)
             result_float = float(result)
+            print("RESULT:", result)
         except ValueError:
-            print(f"Skipping {url}: invalid confidence score '{result}'")
+            failed_score += 1
+            print(f"\nSkipping {url}: invalid confidence score '{result}'\n")
             continue
 
         if result_float > 0.6:
             identified_articles_ids.append(index)
+            identified_articles_urls.append(url)
+
+    print(f"Number of failed float conversions: {failed_score}")
+    with lzma.open("identified_articles_urls.lzma", "wb") as file:
+        file.write(json.dumps(identified_articles_urls).encode("utf-8"))
+
     for index in tqdm(identified_articles_ids, desc="Extracting articles"):
         extraction_result = llm(extractor_instruction, clean_html(data[index][1]))
         # print("\nRESULT:",extraction_result)

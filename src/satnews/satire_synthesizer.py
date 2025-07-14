@@ -85,7 +85,7 @@ import json
 import ollama
 from tqdm import tqdm
 
-prompt = """
+instructions = """
 You are professional synthesis agent specializing in extracting key information from humorous or fictional news content.
 You will receive a single raw satirical news article in json format and extract key information space efficiently.
 
@@ -128,7 +128,7 @@ def synthesize_satire_with_ollama(satire_articles, llm, model = "llama3"):
     #         articles_text += "Images: None\n"
 
     for article in tqdm(satire_articles.values(), desc="Synthesizing"):
-        article["match_informations"] = llm(prompt + json.dumps(article), model)
+        article["match_informations"] = llm(instructions, json.dumps(article), model)
 
     return satire_articles
 

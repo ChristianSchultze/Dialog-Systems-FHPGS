@@ -24,8 +24,8 @@ def main():
         return
 
     # Print extracted JSON for inspection
-    print("\n✅ Extracted Article:")
-    print(json.dumps(extracted_articles, indent=2))
+    # print("\n✅ Extracted Article:")
+    # print(json.dumps(extracted_articles, indent=2))
     with lzma.open("extracted_articles.lzma", "wb") as file:
         file.write(json.dumps(extracted_articles).encode("utf-8"))
 
@@ -37,8 +37,8 @@ def main():
     satire_output = synthesize_satire_with_ollama(extracted_articles, llm, "llama3")
 
     # Show result
-    print("\n✅ Generated Satire:\n")
-    print(satire_output)
+    # print("\n✅ Generated Satire:\n")
+    # print(satire_output)
     with lzma.open("satire_output.lzma", "wb") as file:
         file.write(json.dumps(satire_output).encode("utf-8"))
 

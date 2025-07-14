@@ -87,10 +87,10 @@ from tqdm import tqdm
 
 def make_llm():
     """Create an LLM callable that runs Ollama locally"""
-    def llm(prompt: str, model: str = "llama3") -> str:
+    def llm(instructions: str, prompt: str, model: str = "llama3") -> str:
         response = ollama.chat(
             model=model,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "system", "content": instructions}, {"role": "user", "content": prompt}]
         )
         return response['message']['content'].strip()
 
@@ -163,16 +163,16 @@ DONT RETURN ANYTHING ELSE.
 """
 
     extracted_articles = {}
+    identified_articles_ids = []
     failed_json = 0
     
-    for url, site in tqdm(data, desc="Identifying articles"):
+    for index, (url, site) in tqdm(enumerate(data), desc="Identifying articles", total=len(data)):
         if site == "Failed to retrieve.":
             continue
 
         html_text = clean_html(site)
 
-        article_prompt = article_instruction + "\n\n" + html_text
-        result = llm(article_prompt)
+        result = llm(article_instruction, html_text)
 
         try:
             result = result.strip().replace(",", "").replace("*","").replace("'", "")
@@ -183,17 +183,18 @@ DONT RETURN ANYTHING ELSE.
             continue
 
         if result_float > 0.6:
-            extractor_prompt = extractor_instruction + "\n\n" + html_text
-            extraction_result = llm(extractor_prompt, "llama3")
-            # print("\nRESULT:",extraction_result)
-            try:
-                article_json = json.loads(extraction_result)
-            except json.JSONDecodeError:
-                print(f"Skipping {url}: invalid JSON extraction.")
-                failed_json += 1
-                continue
+            identified_articles_ids.append(index)
+    for index in tqdm(identified_articles_ids, desc="Extracting articles"):
+        extraction_result = llm(extractor_instruction, clean_html(data[index][1]))
+        # print("\nRESULT:",extraction_result)
+        try:
+            article_json = json.loads(extraction_result)
+        except json.JSONDecodeError:
+            print(f"Skipping {data[index][0]}: invalid JSON extraction.")
+            failed_json += 1
+            continue
 
-            extracted_articles[url] = article_json
+        extracted_articles[data[index][0]] = article_json
     print(f"Number of failed json conversions: {failed_json}")
 
     return extracted_articles

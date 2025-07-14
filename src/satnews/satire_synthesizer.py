@@ -127,8 +127,8 @@ def synthesize_satire_with_ollama(satire_articles, llm, model = "llama3"):
     #     else:
     #         articles_text += "Images: None\n"
 
-    for article in tqdm(satire_articles.values(), desc="Synthesizing"):
-        article["match_informations"] = llm(instructions, json.dumps(article), model)
+    for key, article in tqdm(satire_articles.items(), desc="Synthesizing"):
+            article["match_informations"] = llm(instructions, json.dumps(article), model)
 
     return satire_articles
 

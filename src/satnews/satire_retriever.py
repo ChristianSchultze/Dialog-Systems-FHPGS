@@ -90,7 +90,9 @@ def make_llm():
     def llm(instructions: str, prompt: str, model: str = "llama3") -> str:
         response = ollama.chat(
             model=model,
-            messages=[{"role": "system", "content": instructions}, {"role": "user", "content": prompt}]
+            messages=[{"role": "system", "content": instructions}, {"role": "user", "content": prompt}],
+            # options={"num_ctx": 8192}
+            options={"num_ctx": 32768}
         )
         return response['message']['content'].strip()
 

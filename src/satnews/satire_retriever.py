@@ -82,13 +82,14 @@ import lzma
 from bs4 import BeautifulSoup
 import re
 import ollama
+from tqdm import tqdm
 
 
 def make_llm():
     """Create an LLM callable that runs Ollama locally"""
-    def llm(prompt: str) -> str:
+    def llm(prompt: str, model: str = "llama3") -> str:
         response = ollama.chat(
-            model='llama3',
+            model=model,
             messages=[{"role": "user", "content": prompt}]
         )
         return response['message']['content'].strip()
@@ -126,6 +127,9 @@ Article Definition:
 - Author attribution
 - Paragraphs of text
 
+A News Headline is not sufficient for it being a news article! Only when there is considerable amount of text 
+related to the headline it counts as article!
+
 Output Format:
 Return a single float value ( 2 decimal places) between 0 and 1, representing your confidence that the page contains an article:
 1.0: Definitely an article
@@ -136,7 +140,8 @@ Dont explain your reasoning and only return the float value.
 
     extractor_instruction = """
 You are an HTML data extractor.
-Your job is to extract information about the main article on this page from raw HTML code and convert it into clean JSON format.
+Your job is to extract information about the main article on this page from raw HTML code and convert it into clean 
+JSON format.
 
 Focus on extracting:
 - Article title
@@ -144,14 +149,23 @@ Focus on extracting:
 - Article content
 - Image links clearly related to the main article
 
+Ignore:
+- Ads
+- Navigation
+- Unrelated text
+
+ONLY include RELATED text, NO Navigation, NO Ads, No unrelated text!
+OUTPUT ONLY RAW DATA IN JSON FORMAT
+
 Output Format:
 Don't tell anything about the JSON, Just return the JSON object.
 DONT RETURN ANYTHING ELSE.
 """
 
     extracted_articles = {}
+    failed_json = 0
     
-    for url, site in data.items():
+    for url, site in tqdm(data, desc="Identifying articles"):
         if site == "Failed to retrieve.":
             continue
 
@@ -170,16 +184,16 @@ DONT RETURN ANYTHING ELSE.
 
         if result_float > 0.6:
             extractor_prompt = extractor_instruction + "\n\n" + html_text
-            extraction_result = llm(extractor_prompt)
-            print("\nRESULT:",extraction_result)
+            extraction_result = llm(extractor_prompt, "llama3")
+            # print("\nRESULT:",extraction_result)
             try:
                 article_json = json.loads(extraction_result)
             except json.JSONDecodeError:
                 print(f"Skipping {url}: invalid JSON extraction.")
+                failed_json += 1
                 continue
 
             extracted_articles[url] = article_json
-        
-
+    print(f"Number of failed json conversions: {failed_json}")
 
     return extracted_articles

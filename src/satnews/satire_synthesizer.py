@@ -1,5 +1,6 @@
 # import ollama
 # from duckduckgo_search import DDGS
+import json
 
 # def search_news(topic, max_results=3):
 #     """Search for news articles using DuckDuckGo"""
@@ -82,63 +83,52 @@
 
 
 import ollama
+from tqdm import tqdm
 
- 
-def synthesize_satire_with_ollama(satire_articles, model='llama3'):
-    """Generate satirical commentary using Ollama LLM from extracted article data"""
-
-    articles_text = ""
-    for url, article in satire_articles.items():
-        articles_text += f"\n\n=== Article from {url} ===\n"
-        articles_text += f"Title: {article.get('article_title', 'N/A')}\n"
-        articles_text += f"Published: {article.get('publication_date', 'N/A')}\n"
-        articles_text += f"Content: {article.get('article_content', 'N/A')}\n"
-        image_links = article.get('image_links', [])
-        if image_links:
-            articles_text += f"Images: {', '.join(image_links)}\n"
-        else:
-            articles_text += "Images: None\n"
-
-    prompt = f"""
-You are a satirical news synthesis agent specializing in summarizing humorous or fictional news content.
-
-Your responsibilities:
-
-📥 Input:
-You will receive a collection of satirical news articles from different sources.
+prompt = """
+You are professional synthesis agent specializing in extracting key information from humorous or fictional news content.
+You will receive a single raw satirical news article in json format and extract key information space efficiently.
 
 Each article contains:
 - Title
 - Source Name
+- Content 
 - URL (optional)
 - Published date (optional)
-- Content (optional)
 
-📊 📖 Task:
-Organize the articles source-wise in a clean, structured format.
-
-For each article, display:
-- Title
-- URL
-- (optional) Published date
-- (optional) Content
-
-Identify and group articles by shared themes or topics (e.g., political satire, celebrity mockery).
+You need to prepare information that are important for matching the satirical news to an actual event.
 
 Extract key jokes, satirical points, or notable fictional events.
 
-Combine information from multiple sources on the same topic into one entertaining synthesis.
+Summarize the main idea of the satirical news. What or who is being mocked?
 
-Structure your output as follows:
+Extract information about key individuals, institutions, ideologies, companies or social behaviors.
 
-Articles:
-{articles_text}
+BE CONCISE AND EFFICIENT USING BULLET POINTS
+Don't tell anything about the output.
+DONT RETURN ANYTHING ELSE.
+Article:
+
+
 """
+ 
+def synthesize_satire_with_ollama(satire_articles, llm, model = "llama3"):
+    """Generate satirical commentary using Ollama LLM from extracted article data"""
 
-    response = ollama.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    # articles_text = ""
+    # for url, article in satire_articles.items():
+    #     articles_text += f"\n\n=== Article from {url} ===\n"
+    #     articles_text += f"Title: {article.get('article_title', 'N/A')}\n"
+    #     articles_text += f"Published: {article.get('publication_date', 'N/A')}\n"
+    #     articles_text += f"Content: {article.get('article_content', 'N/A')}\n"
+    #     image_links = article.get('image_links', [])
+    #     if image_links:
+    #         articles_text += f"Images: {', '.join(image_links)}\n"
+    #     else:
+    #         articles_text += "Images: None\n"
 
-    return response['message']['content']
+    for article in tqdm(satire_articles.values(), desc="Synthesizing"):
+        article["match_informations"] = llm(prompt + json.dumps(article), model)
+
+    return satire_articles
 

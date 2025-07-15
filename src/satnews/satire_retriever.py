@@ -171,7 +171,7 @@ DONT RETURN ANYTHING ELSE.
     failed_score = 0
 
     for index, (url, site) in tqdm(enumerate(data), desc="Identifying articles", total=len(data)):
-        if site == "Failed to retrieve.":
+        if site == "Failed to retrieve." or site == "":
             continue
 
         html_text = clean_html(site)

@@ -94,43 +94,61 @@ def is_same_domain(base_url, target_url):
     return urlparse(base_url).netloc == urlparse(target_url).netloc
 
 def scrape_site(base_url: str) -> dict:
-    result_data: Dict[str, str] = {}
-    to_visit = {base_url}
+
+    with lzma.open("onion_data.lzma", "rb") as file:
+        onion_data = json.loads(file.read().decode("utf-8"))
+
+    for key in onion_data:
+        onion_data[key] = ""
+
+    with lzma.open("onion_to_visit.lzma", "rb") as file:
+        onion_to_visit = json.loads(file.read().decode("utf-8"))
+
+    result_data: Dict[str, str] = onion_data
+    to_visit = set(onion_to_visit)
 
     while to_visit:
-        if len(result_data) %1000 == 0:
-            json_str = json.dumps(result_data)
-            json_bytes = json_str.encode('utf-8')
-            with lzma.open("onion_data.lzma", "wb") as file:
-                file.write(json_bytes)
         print(len(to_visit))
+        if len(result_data) %1000 == 0:
+            with lzma.open("onion_data_save.lzma", "wb") as file:
+                file.write(json.dumps(result_data).encode('utf-8'))
+            with lzma.open("onion_to_visit_save.lzma", "wb") as file:
+                file.write(json.dumps(list(to_visit)).encode('utf-8'))
+
         current_url = to_visit.pop()
         if current_url in result_data:
             continue
 
         try:
-            response = requests.get(current_url)
+            response = requests.get(current_url, timeout=10)
             result_data[current_url] = response.text
             # print(f"Scraping: {current_url}")
+        except requests.exceptions.Timeout:
+            result_data[current_url] = "Failed to retrieve."
+            print(f"Timeout {current_url}")
         except requests.RequestException as e:
             result_data[current_url] = "Failed to retrieve."
             print(f"Failed to fetch {current_url}: {e}")
             continue
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        start = time.time()
-        for link_tag in soup.find_all('a', href=True):
-            if time.time() - start > 10:
-                break
-            href = link_tag['href']
-            full_url = urljoin(current_url, href)
-
-            # Only follow links within the same domain
-            if is_same_domain(base_url, full_url) and full_url not in result_data:
-                to_visit.add(full_url)
+        extract_links(base_url, current_url, response.text, result_data, to_visit)
 
     return result_data
+
+
+def extract_links(base_url, current_url, html, result_data, to_visit):
+    start = time.time()
+    soup = BeautifulSoup(html, 'html.parser')
+    for link_tag in soup.find_all('a', href=True):
+        if time.time() - start > 10:
+            break
+        href = link_tag['href']
+        full_url = urljoin(current_url, href)
+
+        # Only follow links within the same domain
+        if is_same_domain(base_url, full_url) and full_url not in result_data:
+            to_visit.add(full_url)
+
 
 def fetch_onion_articles() -> dict:
     base_url = 'https://theonion.com/'

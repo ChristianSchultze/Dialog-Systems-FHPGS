@@ -95,13 +95,13 @@ def is_same_domain(base_url, target_url):
 
 def scrape_site(base_url: str) -> dict:
 
-    with lzma.open("onion_data.lzma", "rb") as file:
+    with lzma.open("onion_data_2.lzma", "rb") as file:
         onion_data = json.loads(file.read().decode("utf-8"))
 
     for key in onion_data:
         onion_data[key] = ""
 
-    with lzma.open("onion_to_visit.lzma", "rb") as file:
+    with lzma.open("onion_to_visit_2.lzma", "rb") as file:
         onion_to_visit = json.loads(file.read().decode("utf-8"))
 
     result_data: Dict[str, str] = onion_data
@@ -110,10 +110,13 @@ def scrape_site(base_url: str) -> dict:
     while to_visit:
         print(len(to_visit))
         if len(result_data) %1000 == 0:
+            print("SAVING")
+            start = time.time()
             with lzma.open("onion_data_save.lzma", "wb") as file:
                 file.write(json.dumps(result_data).encode('utf-8'))
             with lzma.open("onion_to_visit_save.lzma", "wb") as file:
                 file.write(json.dumps(list(to_visit)).encode('utf-8'))
+            print(f"DONE in {time.time() - start} seconds")
 
         current_url = to_visit.pop()
         if current_url in result_data:

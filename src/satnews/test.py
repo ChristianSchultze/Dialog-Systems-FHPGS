@@ -1,40 +1,76 @@
+import csv
 import lzma
 import json
-from itertools import islice
+import lzma
 
-from satire_retriever import extract_articles_from_data, make_llm
-from satire_synthesizer import synthesize_satire_with_ollama
-from src.satnews.matcher import get_matched_articles
-from src.satnews.summarizer import summarize
+import ollama
+
+from satire_retriever import make_llm
+from src.satnews.summarizer import summarize, make_llm_chat
 
 
 def main():
     # Load data
-    with lzma.open("onion_data.lzma", "rb") as file:
-        data = json.loads(file.read().decode("utf-8"))
+    # with lzma.open("onion_data_2.lzma", "rb") as file:
+    #     data = json.loads(file.read().decode("utf-8"))
+
+    # with lzma.open("test_set_raw.lzma", "rb") as file:
+    #     one_url_data = json.loads(file.read().decode("utf-8"))
 
     # Pick just one URL and its content
-    one_url_data = list(islice(data.items(), len(data)))
+    # one_url_data = list(islice(data.items(), len(data)-100, len(data)))
 
-    # Initialize local LLM
+    # with open('test_set.csv', 'w', newline='') as csvfile:
+    #     spamwriter = csv.writer(csvfile, delimiter=',',
+    #                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    #     for url, _ in one_url_data:
+    #         spamwriter.writerow([url, 0])
+
+    # ground_truth = []
+    # with open('test_set.csv', newline='') as csvfile:
+    #     spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    #     for row in spamreader:
+    #         if bool(int(row[1])):
+    #             ground_truth.append(row[0])
+    #
+    # # Initialize local LLM
     llm = make_llm()
-
+    #
     # print("\n📄 Extracting article from URL...\n")
     # extracted_articles = extract_articles_from_data(one_url_data, llm)
     #
+    # # with lzma.open("identified_articles_urls.lzma", "rb") as file:
+    # #     extracted_articles = json.loads(file.read().decode("utf-8"))
+    #
+    # true_positive = 0
+    # for url in extracted_articles.keys():
+    #     if url in ground_truth:
+    #         true_positive += 1
+    # print(f"Precision: {true_positive/ len(extracted_articles)}")
+    # print(f"Recall: {true_positive/ len(one_url_data)}")
+    #
+    # return
+
+
     # if not extracted_articles:
     #     print("❌ No articles extracted.")
     #     return
-    #
-    # # Print extracted JSON for inspection
-    # # print("\n✅ Extracted Article:")
-    # # print(json.dumps(extracted_articles, indent=2))
-    # with lzma.open("extracted_articles.lzma", "wb") as file:
-    #     file.write(json.dumps(extracted_articles).encode("utf-8"))
 
-    # with lzma.open("extracted_articles.lzma", "rb") as file:
-    #     extracted_articles = json.loads(file.read().decode("utf-8"))
-    #
+    # Print extracted JSON for inspection
+    # print("\n✅ Extracted Article:")
+    # print(json.dumps(extracted_articles, indent=2))
+
+    with lzma.open("extracted_articles.lzma", "rb") as file:
+        extracted_articles = json.loads(file.read().decode("utf-8"))
+
+    with open('test_set.csv', 'w', newline='') as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for url in extracted_articles.keys():
+            spamwriter.writerow([url, 0])
+
+    return
+
     # invalid_json_keys = []
     # for key, article in extracted_articles.items():
     #     if not isinstance(article, dict):
@@ -48,8 +84,8 @@ def main():
     # with lzma.open("satire_output.lzma", "wb") as file:
     #     file.write(json.dumps(satire_output).encode("utf-8"))
 
-    with lzma.open("satire_output.lzma", "rb") as file:
-        satire_output = json.loads(file.read().decode("utf-8"))
+    # with lzma.open("satire_output.lzma", "rb") as file:
+    #     satire_output = json.loads(file.read().decode("utf-8"))
 
     # headlines = ""
     # for i, article in enumerate(list(reversed(satire_output.values()))):
@@ -74,44 +110,40 @@ def main():
     #
     # print(llm(instructions, headlines, "llama3.3:70b"))
 
-    real_data = """
-- HST captures NGC 1786: A new image of a globular cluster
-- Snow on SOAR Telescope: Unexpected frost in Chile may briefly impact observations Space.
-- Fast X-ray transient linked to supernova: Gemini and SOAR capture this key insight into massive stars’ explosive deaths
+    real_data = """"""
 
-- SPHEREx launched (Mar12, 2025): A near-IR all-sky spectrophotometer now mapping 450 million galaxies Wikipedia.
-- China’s Tianwen‑2: Launched May28, heading to Kamoʻoalewa (2026 rendezvous) and main‑belt comet 311P/PANSTARRS
-- Roman Space Telescope: NASA’s next-gen IR surveyor slated for launch in late 2026–early 2027
-- India’s Venus Orbiter Mission (Shukrayaan) approved—aiming
+    # satire_slice = list(islice(satire_output.items(), len(data)))
+    # matched_data = get_matched_articles(llm, model="gemma3:27b", satirical_data=satire_slice, real_data={"Recent space news": real_data})
+    #
+    # print(json.dumps(matched_data))
+    # with lzma.open("matched_data.lzma", "wb") as file:
+    #     file.write(json.dumps(matched_data).encode("utf-8"))
 
-- TESS finds new super‑Earth:
-- JWST & HST deep dives: Recent revelations include:
-  - JWST spotting Neptunian auroras, brown dwarfs, protostars, super-Jupiters, and galaxy evolution insights .
-
-- July full moon (“Thunder Moon”)
-- Meteor overlap next week: Southern Delta Aquariids and Alpha Capricornids
-- July planetary lineup: Nights lit by Mars, Mercury mornings with Venus and Jupiter
-- Citizen science catch: Kilonova Seekers app help led to discovery of a dwarf nova by amateur astronomer—first
-#
-# ### Policy & Funding
-#
-# - US NASA funding cuts: Proposed budget would slash Mars, Hubble, Webb"""
-#
-#     satire_slice = list(islice(satire_output.items(), len(data)))
-#     matched_data = get_matched_articles(llm, model="gemma3:27b", satirical_data=satire_slice, real_data={"Recent space news": real_data})
-#
-#     print(json.dumps(matched_data))
-#     with lzma.open("matched_data.lzma", "wb") as file:
-#         file.write(json.dumps(matched_data).encode("utf-8"))
-
-    with lzma.open("matched_data.lzma", "rb") as file:
-        matched_data = json.loads(file.read().decode("utf-8"))
-
-    output = summarize(llm, model="gemma3:27b", matched_articles=matched_data)
-
-    print(json.dumps(output))
-    with open("output.txt", "w") as file:
-        file.write(output)
+    # with lzma.open("matched_data.lzma", "rb") as file:
+    #     matched_data = json.loads(file.read().decode("utf-8"))
+    #
+    # chat = make_llm_chat()
+    # model = "gemma3:27b"
+    # output, messages = summarize(chat, model=model, matched_articles=matched_data)
+    #
+    # text = output
+    # print(json.dumps(output))
+    # with open("text_output.txt", "w") as file:
+    #     file.write(text)
+    # while True:
+    #     user_input = input("You: \n")
+    #     text += "You: \n"
+    #     if user_input.strip().lower() == "exit":
+    #         break
+    #     messages.append({"role": "user", "content": user_input})
+    #     text += user_input
+    #     reply = ollama.chat(model=model, messages=messages, options={"num_ctx": 32768})['message']['content'].strip()
+    #     print("Satirical News Agent: ", reply)
+    #     text += "Satirical News Agent: "
+    #     text += reply
+    #     messages.append({"role": "assistant", "content": reply})
+    #     with open("text_output.txt", "w") as file:
+    #         file.write(text)
 
 if __name__ == "__main__":
     main()

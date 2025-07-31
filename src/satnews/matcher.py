@@ -5,8 +5,8 @@ from itertools import islice
 import numpy as np
 from tqdm import tqdm
 
-from src.satnews.model import make_llm
-from src.satnews.utils import module_wrapper, get_parser
+from satnews.model import make_llm
+from satnews.utils import module_wrapper, get_parser
 
 def match_articles(llm, model, satirical_data, topic):
     matching_data = [0] * len(satirical_data)
@@ -52,7 +52,9 @@ def get_matched_articles(llm, model, satirical_data, topic):
 
     matched_articles = []
     for index in indices:
-        matched_articles.append(satirical_data[index][1])
+        json_data = satirical_data[index][1]
+        json_data["original_url"] = satirical_data[index][0]
+        matched_articles.append(json_data)
 
     return matched_articles
 
@@ -60,13 +62,13 @@ def get_matched_articles(llm, model, satirical_data, topic):
 def main(data, args):
     llm = make_llm()
     satire_slice = list(islice(data.items(), len(data)))
-    matched_data = get_matched_articles(llm, model="gemma3:27b", satirical_data=satire_slice, topic=args.topic)
+    matched_data = get_matched_articles(llm, model="llama3", satirical_data=satire_slice, topic=args.topic)
     return matched_data
 
 
 if __name__ == "__main__":
     description = "Matching News"
-    output_file_name = "_matched_data.lzma"
+
     input_file_name = "_satire_output.lzma"
     run_module = main
 
@@ -77,4 +79,6 @@ if __name__ == "__main__":
         default=None,
         help="Real topic description for matching with satirical news."
     )
-    module_wrapper(parser.parse_args(), output_file_name, input_file_name, run_module)
+    args = parser.parse_args()
+    output_file_name = f"_matched_data[{args.topic}].lzma"
+    module_wrapper(args, output_file_name, input_file_name, run_module)

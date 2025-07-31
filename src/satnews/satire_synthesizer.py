@@ -5,8 +5,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from src.satnews.model import make_llm
-from src.satnews.utils import get_parser, module_wrapper
+from satnews.model import make_llm
+from satnews.utils import get_parser, module_wrapper
 
 instructions = """
 You are professional synthesis agent specializing in extracting key information from humorous or fictional news content.

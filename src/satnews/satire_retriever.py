@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 import re
 from tqdm import tqdm
 
-from src.satnews.model import make_llm
-from src.satnews.utils import get_parser, module_wrapper
+from satnews.model import make_llm
+from satnews.utils import get_parser, module_wrapper
 
 
 def clean_html(html: str) -> str:

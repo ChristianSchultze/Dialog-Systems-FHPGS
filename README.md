@@ -20,5 +20,5 @@ import satnews
 Running scarper script from console:
 
 ````
-python -m stanews.scaper -
+python -m satnews.scraper -d https:/example.com
 ````

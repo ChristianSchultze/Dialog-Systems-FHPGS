@@ -88,5 +88,5 @@ if __name__ == "__main__":
     limit = len(input_data) if args.limit is None else args.limit
     input_data = input_data[:limit]
     result = main(input_data)
-    with open(path.parent / (output_file_name), "w") as file:
+    with open(path.parent / output_file_name, "w") as file:
         file.write(result)

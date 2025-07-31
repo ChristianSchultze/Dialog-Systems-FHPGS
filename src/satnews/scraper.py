@@ -20,9 +20,9 @@ def scrape_site(base_url: str) -> dict:
         if len(result_data) %1000 == 0:
             print("SAVING")
             start = time.time()
-            with lzma.open("onion_data_save.lzma", "wb") as file:
+            with lzma.open(args.output + "_partial.lzma", "wb") as file:
                 file.write(json.dumps(result_data).encode('utf-8'))
-            with lzma.open("onion_to_visit_save.lzma", "wb") as file:
+            with lzma.open(args.output + "_visited.lzma", "wb") as file:
                 file.write(json.dumps(list(to_visit)).encode('utf-8'))
             print(f"DONE in {time.time() - start} seconds")
 
@@ -70,12 +70,19 @@ def get_args():
         required=True,
         help="The domain to scrape."
     )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        required=True,
+        help="Output file name."
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = get_args()
     result = scrape_site(args.domain)
-    with lzma.open("onion_data_save.lzma", "wb") as file:
+    with lzma.open(args.output + ".lzma", "wb") as file:
         file.write(json.dumps(result).encode('utf-8'))
 
 

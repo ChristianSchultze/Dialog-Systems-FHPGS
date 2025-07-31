@@ -1,7 +1,4 @@
-import argparse
 import json
-import lzma
-from pathlib import Path
 
 from tqdm import tqdm
 
@@ -29,8 +26,6 @@ BE CONCISE AND EFFICIENT USING BULLET POINTS
 Don't tell anything about the output.
 DONT RETURN ANYTHING ELSE.
 Article:
-
-
 """
  
 def synthesize_satire_with_ollama(satire_articles, llm, model = "llama3"):
